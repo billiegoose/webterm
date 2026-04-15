@@ -1,0 +1,16 @@
+[Unit]
+Description=WebTerm - Web Terminal
+After=network.target
+
+[Service]
+Type=simple
+User=exedev
+WorkingDirectory=/home/exedev/webterm
+ExecStart=/home/exedev/webterm/webterm -listen :8000
+Restart=always
+RestartSec=2
+Environment=HOME=/home/exedev
+Environment=TERM=xterm-256color
+
+[Install]
+WantedBy=multi-user.target

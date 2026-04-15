@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>WebTerm — {{.Hostname}}</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Top toolbar -->
+  <div id="toolbar">
+    <div id="toolbar-left">
+      <button id="btn-menu" class="toolbar-btn" title="Menu">☰</button>
+      <span id="toolbar-title">WebTerm</span>
+    </div>
+    <div id="toolbar-right">
+      <button id="btn-history" class="toolbar-btn" title="History">⏱</button>
+      <button id="btn-bookmarks" class="toolbar-btn" title="Bookmarks">★</button>
+      <button id="btn-keyboard" class="toolbar-btn" title="Toggle Keyboard">⌨</button>
+    </div>
+  </div>
+
+  <!-- Terminal area -->
+  <div id="terminal-container">
+    <div id="terminal"></div>
+  </div>
+
+  <!-- Quick-action bar (mobile) -->
+  <div id="quick-bar">
+    <button class="qk" data-key="\x09">Tab</button>
+    <button class="qk" data-key="\x1b">Esc</button>
+    <button class="qk" data-key="\x03">Ctrl+C</button>
+    <button class="qk" data-key="\x04">Ctrl+D</button>
+    <button class="qk" data-key="\x1a">Ctrl+Z</button>
+    <button class="qk" data-key="\x1b[A">↑</button>
+    <button class="qk" data-key="\x1b[B">↓</button>
+    <button class="qk" data-key="|">|</button>
+  </div>
+
+  <!-- Swipe hint overlay -->
+  <div id="swipe-hint" class="hidden">
+    <span id="swipe-hint-text"></span>
+  </div>
+
+  <!-- Side panel (history & bookmarks) -->
+  <div id="panel-overlay" class="hidden" onclick="closePanel()"></div>
+  <div id="side-panel" class="hidden">
+    <div id="panel-header">
+      <h2 id="panel-title">History</h2>
+      <button id="panel-close" onclick="closePanel()">✕</button>
+    </div>
+    <div id="panel-search-wrap">
+      <input type="text" id="panel-search" placeholder="Filter…" autocomplete="off">
+    </div>
+    <div id="panel-content"></div>
+  </div>
+
+  <!-- Confirmation toast -->
+  <div id="toast" class="hidden"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
+<script src="/static/script.js"></script>
+</body>
+</html>
