@@ -170,7 +170,18 @@
 
     // Prevent quick-bar interactions from stealing focus (keeps mobile keyboard open).
     // pointerdown preventDefault stops the focus shift without blocking click events.
-    quickBar.addEventListener('pointerdown', (e) => e.preventDefault());
+    // But it also breaks :active/:hover state cleanup, so we handle press feedback manually.
+    quickBar.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const btn = e.target.closest('.qk');
+      if (btn) {
+        btn.classList.add('qk-pressed');
+        const clear = () => { btn.classList.remove('qk-pressed'); };
+        btn.addEventListener('pointerup', clear, { once: true });
+        btn.addEventListener('pointerleave', clear, { once: true });
+        btn.addEventListener('pointercancel', clear, { once: true });
+      }
+    });
 
     // Normal mode buttons (with data-key)
     normalBar.querySelectorAll('.qk[data-key]').forEach(btn => {
