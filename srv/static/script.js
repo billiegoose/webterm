@@ -188,7 +188,7 @@
       if (textarea) textarea.focus();
     });
     document.getElementById('btn-menu').addEventListener('click', () => {
-      showToast('WebTerm — swipe right: autocomplete · swipe left: clear');
+      showToast('Swipe → autocomplete · ← back word · ↑ prev cmd');
     });
   }
 
@@ -218,15 +218,14 @@
           // Swipe right = tab completion
           showSwipeHint('Tab ⇥ (autocomplete)');
         } else {
-          // Swipe left = Ctrl+U (clear line)
-          showSwipeHint('← Clear line');
+          // Swipe left = move cursor back one word
+          showSwipeHint('← Back word');
         }
-      } else if (Math.abs(dy) > 30 && Math.abs(dy) > Math.abs(dx) * 1.5) {
-        isSwiping = true;
-        if (dy < 0) {
+      } else if (dy < -30 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+        // Swipe up only, and only when scrolled to bottom
+        if (isScrolledToBottom()) {
+          isSwiping = true;
           showSwipeHint('↑ Previous command');
-        } else {
-          showSwipeHint('↓ Next command');
         }
       }
     }, { passive: true });
@@ -247,17 +246,12 @@
           // Swipe right -> Tab
           sendKey('\t');
         } else {
-          // Swipe left -> Ctrl+U (clear line)
-          sendKey('\x15');
+          // Swipe left -> Alt+B (back one word in bash/readline)
+          sendKey('\x1bb');
         }
-      } else if (Math.abs(dy) > 60 && Math.abs(dy) > Math.abs(dx) * 1.5) {
-        if (dy < 0) {
-          // Swipe up -> Up arrow
-          sendKey('\x1b[A');
-        } else {
-          // Swipe down -> Down arrow
-          sendKey('\x1b[B');
-        }
+      } else if (dy < -60 && Math.abs(dy) > Math.abs(dx) * 1.5 && isScrolledToBottom()) {
+        // Swipe up -> Up arrow (previous command), only at bottom
+        sendKey('\x1b[A');
       }
 
       isSwiping = false;
@@ -465,6 +459,11 @@
     if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
     if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
     return Math.floor(diff / 86400) + 'd ago';
+  }
+
+  function isScrolledToBottom() {
+    if (!term) return true;
+    return term.buffer.active.viewportY >= term.buffer.active.baseY;
   }
 
   function debounce(fn, ms) {
