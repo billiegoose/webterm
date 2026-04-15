@@ -83,9 +83,8 @@ body{
 .qk:hover,.qk:active{background:var(--border);color:var(--accent)}
 #qk-normal,#qk-ctrl{display:flex;align-items:center;gap:2px;height:100%}
 #qk-normal.hidden,#qk-ctrl.hidden{display:none}
-#btn-ctrl{color:var(--accent);border-color:var(--accent);font-weight:700}
 .qk-back{color:var(--text-dim)!important;font-size:11px!important}
-.qk-mod{color:var(--accent)!important;font-weight:700;min-width:34px;text-align:center}
+.qk-mod{min-width:34px;text-align:center}
 
 /* === Swipe hint === */
 #swipe-hint{
