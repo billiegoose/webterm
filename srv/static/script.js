@@ -164,8 +164,13 @@
   let ctrlMode = false;
 
   function setupQuickBar() {
+    const quickBar = document.getElementById('quick-bar');
     const normalBar = document.getElementById('qk-normal');
     const ctrlBar = document.getElementById('qk-ctrl');
+
+    // Prevent quick-bar interactions from stealing focus (keeps mobile keyboard open).
+    // pointerdown preventDefault stops the focus shift without blocking click events.
+    quickBar.addEventListener('pointerdown', (e) => e.preventDefault());
 
     // Normal mode buttons (with data-key)
     normalBar.querySelectorAll('.qk[data-key]').forEach(btn => {
