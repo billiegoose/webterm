@@ -14,8 +14,16 @@
   --quickbar-h: 40px;
   --panel-w: 340px;
 }
-html,body{
-  height:100svh;width:100%;overflow:hidden;
+html{
+  height:100%;
+  width:100%;
+}
+body{
+  height:100%;
+  width:100%;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
   background:var(--bg);color:var(--text);
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   -webkit-tap-highlight-color:transparent;
@@ -25,10 +33,11 @@ html,body{
 /* === Toolbar === */
 #toolbar{
   display:flex;justify-content:space-between;align-items:center;
-  height:var(--toolbar-h);padding:0 8px;
+  flex-shrink:0;
+  height:var(--toolbar-h);min-height:var(--toolbar-h);padding:0 8px;
   background:var(--surface);border-bottom:1px solid var(--border);
   user-select:none;-webkit-user-select:none;
-  z-index:100;position:relative;
+  z-index:100;
 }
 #toolbar-left,#toolbar-right{display:flex;align-items:center;gap:4px}
 #toolbar-title{font-size:14px;font-weight:600;margin-left:6px;color:var(--accent)}
@@ -43,20 +52,19 @@ html,body{
 
 /* === Terminal === */
 #terminal-container{
-  position:absolute;
-  top:var(--toolbar-h);
-  bottom:var(--quickbar-h);
-  left:0;right:0;
+  flex:1;
+  min-height:0;
   overflow:hidden;
   background:var(--bg);
+  position:relative;
 }
-#terminal{height:100%;width:100%}
+#terminal{height:100%;width:100%;overflow:hidden}
 .xterm{height:100%!important}
 
 /* === Quick-action bar === */
 #quick-bar{
-  position:absolute;bottom:0;left:0;right:0;
-  height:var(--quickbar-h);
+  flex-shrink:0;
+  height:var(--quickbar-h);min-height:var(--quickbar-h);
   display:flex;align-items:center;gap:2px;
   padding:0 4px;
   background:var(--surface);border-top:1px solid var(--border);
@@ -157,11 +165,10 @@ html,body{
 }
 #toast.hidden{opacity:0;pointer-events:none}
 
-/* === Desktop: hide quick bar on large screens (optional) === */
+/* === Desktop: smaller quick bar === */
 @media(min-width:768px){
-  #quick-bar{height:32px}
+  #quick-bar{height:32px;min-height:32px}
   .qk{padding:3px 10px;font-size:12px}
-  #terminal-container{bottom:32px}
 }
 
 /* === No quick bar when keyboard absent === */
