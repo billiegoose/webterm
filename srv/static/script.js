@@ -160,22 +160,58 @@
     }, reconnectDelay);
   }
 
-  // --- Quick Bar ---
+  // --- Quick Bar (two-state: normal + Ctrl mode) ---
+  let ctrlMode = false;
+
   function setupQuickBar() {
-    document.querySelectorAll('.qk').forEach(btn => {
+    const normalBar = document.getElementById('qk-normal');
+    const ctrlBar = document.getElementById('qk-ctrl');
+
+    // Normal mode buttons (with data-key)
+    normalBar.querySelectorAll('.qk[data-key]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         const key = btn.dataset.key;
-        // Interpret escape sequences
         const data = key.replace(/\\x([0-9a-fA-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
                         .replace(/\\x1b/g, '\x1b')
                         .replace(/\\r/g, '\r');
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'input', data: btoa(data) }));
-        }
+        sendKey(data);
         term.focus();
       });
     });
+
+    // Ctrl button → switch to Ctrl mode
+    document.getElementById('btn-ctrl').addEventListener('click', (e) => {
+      e.preventDefault();
+      ctrlMode = true;
+      normalBar.classList.add('hidden');
+      ctrlBar.classList.remove('hidden');
+    });
+
+    // Back button → return to normal mode
+    document.getElementById('btn-ctrl-back').addEventListener('click', (e) => {
+      e.preventDefault();
+      exitCtrlMode();
+      term.focus();
+    });
+
+    // Ctrl+<key> buttons
+    ctrlBar.querySelectorAll('.qk[data-ctrl]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const letter = btn.dataset.ctrl.toLowerCase();
+        const code = letter.charCodeAt(0) - 96; // Ctrl+A=1, Ctrl+C=3, etc.
+        sendKey(String.fromCharCode(code));
+        exitCtrlMode();
+        term.focus();
+      });
+    });
+  }
+
+  function exitCtrlMode() {
+    ctrlMode = false;
+    document.getElementById('qk-normal').classList.remove('hidden');
+    document.getElementById('qk-ctrl').classList.add('hidden');
   }
 
   // --- Toolbar ---
@@ -233,30 +269,73 @@
 
     container.addEventListener('touchend', (e) => {
       hideSwipeHint();
-      if (!isSwiping) return;
 
       const dx = e.changedTouches[0].clientX - touchStartX;
       const dy = e.changedTouches[0].clientY - touchStartY;
       const elapsed = Date.now() - touchStartTime;
 
-      // Need minimum swipe distance and speed
-      if (elapsed > 800) return;
+      if (isSwiping) {
+        // Need minimum swipe distance and speed
+        if (elapsed > 800) { isSwiping = false; return; }
 
-      if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-        if (dx > 0) {
-          // Swipe right -> Tab
-          sendKey('\t');
-        } else {
-          // Swipe left -> Alt+B (back one word in bash/readline)
-          sendKey('\x1bb');
+        if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+          if (dx > 0) {
+            sendKey('\t');
+          } else {
+            sendKey('\x1bb');
+          }
+        } else if (dy < -60 && Math.abs(dy) > Math.abs(dx) * 1.5 && isScrolledToBottom()) {
+          sendKey('\x1b[A');
         }
-      } else if (dy < -60 && Math.abs(dy) > Math.abs(dx) * 1.5 && isScrolledToBottom()) {
-        // Swipe up -> Up arrow (previous command), only at bottom
-        sendKey('\x1b[A');
+        isSwiping = false;
+        return;
       }
 
-      isSwiping = false;
+      // Short tap (not a swipe) — tap-to-reposition cursor
+      if (elapsed < 300 && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+        handleTapToReposition(e.changedTouches[0]);
+      }
     }, { passive: true });
+  }
+
+  // --- Tap to reposition cursor ---
+  // Works like iTerm2: calculates column delta from current cursor to tap
+  // position and sends left/right arrow keys to move there.
+  // Only works on the cursor row (same line).
+  function handleTapToReposition(touch) {
+    if (!term) return;
+    // Only reposition when scrolled to bottom (live input)
+    if (!isScrolledToBottom()) return;
+
+    const termEl = document.querySelector('.xterm-screen');
+    if (!termEl) return;
+
+    const rect = termEl.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+
+    // Calculate cell dimensions
+    const cellWidth = rect.width / term.cols;
+    const cellHeight = rect.height / term.rows;
+
+    const tappedCol = Math.floor(x / cellWidth);
+    const tappedRow = Math.floor(y / cellHeight);
+
+    // Current cursor position (relative to viewport)
+    const cursorCol = term.buffer.active.cursorX;
+    const cursorRow = term.buffer.active.cursorY;
+
+    // Only reposition on the same row as the cursor
+    if (tappedRow !== cursorRow) return;
+
+    const delta = tappedCol - cursorCol;
+    if (delta === 0) return;
+
+    // Send arrow keys to move cursor
+    const arrow = delta > 0 ? '\x1b[C' : '\x1b[D'; // right : left
+    const keys = arrow.repeat(Math.abs(delta));
+    sendKey(keys);
+    term.focus();
   }
 
   function sendKey(key) {

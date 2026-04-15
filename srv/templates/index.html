@@ -35,14 +35,28 @@ Retrieved 2026-04-15, License - CC BY-SA 4.0
 
   <!-- Quick-action bar (mobile) -->
   <div id="quick-bar">
-    <button class="qk" data-key="\x09">Tab</button>
-    <button class="qk" data-key="\x1b">Esc</button>
-    <button class="qk" data-key="\x03">Ctrl+C</button>
-    <button class="qk" data-key="\x04">Ctrl+D</button>
-    <button class="qk" data-key="\x1a">Ctrl+Z</button>
-    <button class="qk" data-key="\x1b[A">↑</button>
-    <button class="qk" data-key="\x1b[B">↓</button>
-    <button class="qk" data-key="|">|</button>
+    <div id="qk-normal">
+      <button class="qk" data-key="\x09">Tab</button>
+      <button class="qk" data-key="\x1b">Esc</button>
+      <button class="qk" id="btn-ctrl">Ctrl</button>
+      <button class="qk" data-key="\x1b[A">↑</button>
+      <button class="qk" data-key="\x1b[B">↓</button>
+      <button class="qk" data-key="|">|</button>
+      <button class="qk" data-key="~">~</button>
+      <button class="qk" data-key="/">/</button>
+    </div>
+    <div id="qk-ctrl" class="hidden">
+      <button class="qk qk-back" id="btn-ctrl-back">◀</button>
+      <button class="qk qk-mod" data-ctrl="c">C</button>
+      <button class="qk qk-mod" data-ctrl="d">D</button>
+      <button class="qk qk-mod" data-ctrl="z">Z</button>
+      <button class="qk qk-mod" data-ctrl="l">L</button>
+      <button class="qk qk-mod" data-ctrl="a">A</button>
+      <button class="qk qk-mod" data-ctrl="e">E</button>
+      <button class="qk qk-mod" data-ctrl="r">R</button>
+      <button class="qk qk-mod" data-ctrl="u">U</button>
+      <button class="qk qk-mod" data-ctrl="w">W</button>
+    </div>
   </div>
 
   <!-- Swipe hint overlay -->
