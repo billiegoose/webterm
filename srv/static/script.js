@@ -24,7 +24,6 @@
   document.addEventListener('DOMContentLoaded', init);
 
   function init() {
-    setupViewport();
     setupTerminal();
     connectWebSocket();
     setupQuickBar();
@@ -36,22 +35,6 @@
     window.closePanel = closePanel;
   }
 
-  // --- Visual Viewport tracking (mobile keyboard awareness) ---
-  function setupViewport() {
-    function setVh() {
-      // visualViewport.height shrinks when the on-screen keyboard opens
-      const vh = (window.visualViewport ? window.visualViewport.height : window.innerHeight) / 100;
-      document.documentElement.style.setProperty('--vh', vh + 'px');
-      fitTerminal();
-    }
-    setVh();
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', setVh);
-      window.visualViewport.addEventListener('scroll', setVh);
-    } else {
-      window.addEventListener('resize', setVh);
-    }
-  }
 
   // --- Terminal Setup ---
   function setupTerminal() {
