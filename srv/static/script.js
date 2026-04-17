@@ -244,57 +244,16 @@
     setupFontSizePicker();
   }
 
-  // --- Font size picker (dropdown menu) ---
-  const FONT_SIZES = [10, 12, 13, 14, 15, 16, 18, 20, 22, 24];
+  // --- Font size picker (uses side panel) ---
+  const FONT_SIZES = [6, 8, 10, 12, 13, 14, 15, 16, 18, 20, 22, 24];
 
   function setupFontSizePicker() {
-    const menu = document.getElementById('font-menu');
-    const btn = document.getElementById('btn-font');
-
-    // Build menu items
-    FONT_SIZES.forEach(size => {
-      const item = document.createElement('button');
-      item.className = 'font-menu-item';
-      item.textContent = size;
-      item.dataset.size = size;
-      item.addEventListener('click', () => {
-        setFontSize(size);
-        closeMenu();
-      });
-      menu.appendChild(item);
-    });
-
-    // Prevent menu clicks from stealing terminal focus
-    menu.addEventListener('pointerdown', (e) => e.preventDefault());
-
     // Restore saved size
     const saved = parseInt(localStorage.getItem('webterm-font-size'), 10);
     if (saved && FONT_SIZES.includes(saved)) setFontSize(saved);
     updateFontLabel();
 
-    // Toggle menu
-    btn.addEventListener('click', () => {
-      menu.classList.toggle('open');
-      if (menu.classList.contains('open')) highlightCurrent();
-    });
-
-    // Close when clicking elsewhere
-    document.addEventListener('pointerdown', (e) => {
-      if (menu.classList.contains('open') && !menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
-        closeMenu();
-      }
-    });
-
-    function closeMenu() {
-      menu.classList.remove('open');
-    }
-
-    function highlightCurrent() {
-      const cur = term.options.fontSize;
-      menu.querySelectorAll('.font-menu-item').forEach(el => {
-        el.classList.toggle('selected', parseInt(el.dataset.size, 10) === cur);
-      });
-    }
+    document.getElementById('btn-font').addEventListener('click', () => togglePanel('font'));
   }
 
   function setFontSize(size) {
@@ -306,6 +265,29 @@
 
   function updateFontLabel() {
     document.getElementById('font-size-label').textContent = term.options.fontSize;
+  }
+
+  function renderFontPanel() {
+    const content = document.getElementById('panel-content');
+    const cur = term.options.fontSize;
+    content.innerHTML = FONT_SIZES.map(size => `
+      <div class="font-size-item${size === cur ? ' selected' : ''}" data-size="${size}">
+        <span class="font-size-item-label">${size}</span>
+        <span class="font-size-item-preview" style="font-size:${size}px">AaBb123</span>
+        <span class="font-size-item-check">✓</span>
+      </div>
+    `).join('');
+
+    content.querySelectorAll('.font-size-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const size = parseInt(el.dataset.size, 10);
+        setFontSize(size);
+        // Update selected state in place
+        content.querySelectorAll('.font-size-item').forEach(item => {
+          item.classList.toggle('selected', parseInt(item.dataset.size, 10) === size);
+        });
+      });
+    });
   }
 
   // --- Gestures ---
@@ -499,20 +481,24 @@
   }
 
   // --- Panel (History / Bookmarks) ---
+  const PANEL_TITLES = { history: 'Command History', bookmarks: 'Bookmarks', font: 'Font Size' };
+
   function togglePanel(mode) {
     if (panelMode === mode) {
       closePanel();
       return;
     }
     panelMode = mode;
-    document.getElementById('panel-title').textContent = mode === 'history' ? 'Command History' : 'Bookmarks';
+    document.getElementById('panel-title').textContent = PANEL_TITLES[mode] || mode;
     document.getElementById('panel-search').value = '';
+    document.getElementById('panel-search-wrap').style.display = mode === 'font' ? 'none' : '';
     document.getElementById('side-panel').classList.remove('hidden');
     document.getElementById('panel-overlay').classList.remove('hidden');
 
     // Highlight active button
     document.getElementById('btn-history').classList.toggle('active', mode === 'history');
     document.getElementById('btn-bookmarks').classList.toggle('active', mode === 'bookmarks');
+    document.getElementById('btn-font').classList.toggle('active', mode === 'font');
 
     loadPanelData();
   }
@@ -523,6 +509,8 @@
     document.getElementById('panel-overlay').classList.add('hidden');
     document.getElementById('btn-history').classList.remove('active');
     document.getElementById('btn-bookmarks').classList.remove('active');
+    document.getElementById('btn-font').classList.remove('active');
+    document.getElementById('panel-search-wrap').style.display = '';
     term.focus();
   }
 
@@ -531,7 +519,9 @@
     content.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim)">Loading…</div>';
 
     try {
-      if (panelMode === 'history') {
+      if (panelMode === 'font') {
+        renderFontPanel();
+      } else if (panelMode === 'history') {
         const res = await fetch('/api/history');
         historyCache = await res.json();
         renderHistoryPanel(historyCache);
