@@ -83,7 +83,7 @@
     // Track current input line for history/autocomplete
     term.onData((data) => {
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'input', data: btoa(data) }));
+        ws.send(JSON.stringify({ type: 'input', data: toBase64(data) }));
       }
       // Track line buffer for command detection
       if (data === '\r') {
@@ -133,8 +133,7 @@
       try {
         const msg = JSON.parse(ev.data);
         if (msg.type === 'output' && msg.data) {
-          const bytes = atob(msg.data);
-          term.write(bytes);
+          term.write(fromBase64(msg.data));
         }
       } catch (e) {
         console.warn('ws message error', e);
@@ -356,7 +355,7 @@
 
   function sendKey(key) {
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'input', data: btoa(key) }));
+      ws.send(JSON.stringify({ type: 'input', data: toBase64(key) }));
     }
   }
 
@@ -523,7 +522,7 @@
     sendKey('\x15'); // Ctrl+U
     setTimeout(() => {
       if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'input', data: btoa(cmd) }));
+        ws.send(JSON.stringify({ type: 'input', data: toBase64(cmd) }));
       }
       currentLine = cmd;
       term.focus();
@@ -560,6 +559,24 @@
   function isScrolledToBottom() {
     if (!term) return true;
     return term.buffer.active.viewportY >= term.buffer.active.baseY;
+  }
+
+  // --- Base64 helpers for proper binary/UTF-8 handling ---
+  // Encode a string (which may contain raw bytes from xterm onData) to base64
+  function toBase64(str) {
+    const bytes = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i) & 0xff;
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  }
+
+  // Decode base64 to Uint8Array, then write as bytes to xterm (which handles UTF-8)
+  function fromBase64(b64) {
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
   }
 
   function debounce(fn, ms) {
