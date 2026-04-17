@@ -245,6 +245,16 @@
   }
 
   // --- Gestures ---
+  // --- Alternate screen detection (tmux, vim, less, etc.) ---
+  function isAlternateScreen() {
+    return term && term.buffer.active.type === 'alternate';
+  }
+
+  // Track cumulative touch-scroll distance for converting to discrete mouse wheel events
+  let scrollAccumulator = 0;
+  let lastTouchY = 0;
+  const SCROLL_LINE_HEIGHT = 30; // pixels per "line" of scroll
+
   function setupGestures() {
     const container = document.getElementById('terminal-container');
 
@@ -255,6 +265,8 @@
       touchStartTime = Date.now();
       isSwiping = false;
       swipeCompletionText = '';
+      scrollAccumulator = 0;
+      lastTouchY = e.touches[0].clientY;
     }, { passive: true });
 
     container.addEventListener('touchmove', (e) => {
@@ -262,35 +274,60 @@
       const dx = e.touches[0].clientX - touchStartX;
       const dy = e.touches[0].clientY - touchStartY;
 
+      // In alternate screen (tmux, vim, less): convert vertical drag to mouse wheel
+      if (isAlternateScreen() && Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
+        e.preventDefault();
+        // Accumulate delta since last touchmove
+        scrollAccumulator += (e.touches[0].clientY - lastTouchY);
+
+        while (Math.abs(scrollAccumulator) >= SCROLL_LINE_HEIGHT) {
+          if (scrollAccumulator < 0) {
+            // Scroll up — send mouse wheel up
+            sendMouseWheel(true);
+            scrollAccumulator += SCROLL_LINE_HEIGHT;
+          } else {
+            // Scroll down — send mouse wheel down
+            sendMouseWheel(false);
+            scrollAccumulator -= SCROLL_LINE_HEIGHT;
+          }
+        }
+        isSwiping = true; // Prevent other gesture handling
+        return;
+      }
+      lastTouchY = e.touches[0].clientY;
+
       // Only consider horizontal swipes
       if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy) * 1.5) {
         isSwiping = true;
 
         if (dx > 0) {
-          // Swipe right = tab completion
           showSwipeHint('Tab ⇥ (autocomplete)');
         } else {
-          // Swipe left = move cursor back one word
           showSwipeHint('← Back word');
         }
       } else if (dy < -30 && Math.abs(dy) > Math.abs(dx) * 1.5) {
-        // Swipe up only, and only when scrolled to bottom
         if (isScrolledToBottom()) {
           isSwiping = true;
           showSwipeHint('↑ Previous command');
         }
       }
-    }, { passive: true });
+    }, { passive: false });
 
     container.addEventListener('touchend', (e) => {
       hideSwipeHint();
+      lastTouchY = 0;
+
+      // If we were doing alternate-screen scroll, just consume the event
+      if (isAlternateScreen() && isSwiping) {
+        isSwiping = false;
+        return;
+      }
 
       const dx = e.changedTouches[0].clientX - touchStartX;
       const dy = e.changedTouches[0].clientY - touchStartY;
       const elapsed = Date.now() - touchStartTime;
 
       if (isSwiping) {
-        // Need minimum swipe distance and speed
         if (elapsed > 800) { isSwiping = false; return; }
 
         if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
@@ -311,6 +348,21 @@
         handleTapToReposition(e.changedTouches[0]);
       }
     }, { passive: true });
+  }
+
+  // Send mouse wheel escape sequences to the PTY.
+  // tmux with `set -g mouse on` responds to these by scrolling in copy-mode.
+  // We send 3 lines per event for comfortable scroll speed.
+  function sendMouseWheel(up) {
+    // Try SGR first (\x1b[< encoding), then fall back to legacy X10.
+    // Most modern terminals (tmux included) negotiate SGR mode,
+    // but we send both — the one the app didn't request is ignored.
+    const button = up ? 64 : 65;
+    const lines = 3;
+    for (let i = 0; i < lines; i++) {
+      // SGR encoding: \x1b[<btn;col;rowM
+      sendKey(`\x1b[<${button};1;1M`);
+    }
   }
 
   // --- Tap to reposition cursor ---
