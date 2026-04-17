@@ -40,6 +40,24 @@ body{
   z-index:100;
 }
 #toolbar-left,#toolbar-right{display:flex;align-items:center;gap:4px}
+#font-wrapper{position:relative}
+#btn-font{font-size:14px;font-variant-numeric:tabular-nums;min-width:36px}
+.font-menu{
+  display:none;
+  position:absolute;top:100%;right:0;margin-top:4px;
+  flex-direction:column;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:4px 0;z-index:150;box-shadow:0 4px 12px rgba(0,0,0,.4);
+  min-width:52px;
+}
+.font-menu.open{display:flex}
+.font-menu-item{
+  background:none;border:none;color:var(--text);cursor:pointer;
+  padding:6px 16px;font-size:14px;text-align:center;
+  font-variant-numeric:tabular-nums;
+}
+.font-menu-item:hover,.font-menu-item:active{background:var(--bg);color:var(--accent)}
+.font-menu-item.selected{color:var(--accent);font-weight:700}
 #toolbar-title{font-size:14px;font-weight:600;margin-left:6px;color:var(--accent)}
 .toolbar-btn{
   background:none;border:1px solid var(--border);color:var(--text);

@@ -235,13 +235,77 @@
     document.getElementById('btn-bookmarks').addEventListener('click', () => togglePanel('bookmarks'));
     document.getElementById('btn-keyboard').addEventListener('click', () => {
       term.focus();
-      // On mobile, focusing the xterm textarea triggers the keyboard
       const textarea = document.querySelector('.xterm-helper-textarea');
       if (textarea) textarea.focus();
     });
     document.getElementById('btn-menu').addEventListener('click', () => {
       showToast('Swipe → autocomplete · ← back word · ↑ prev cmd');
     });
+    setupFontSizePicker();
+  }
+
+  // --- Font size picker (dropdown menu) ---
+  const FONT_SIZES = [10, 12, 13, 14, 15, 16, 18, 20, 22, 24];
+
+  function setupFontSizePicker() {
+    const menu = document.getElementById('font-menu');
+    const btn = document.getElementById('btn-font');
+
+    // Build menu items
+    FONT_SIZES.forEach(size => {
+      const item = document.createElement('button');
+      item.className = 'font-menu-item';
+      item.textContent = size;
+      item.dataset.size = size;
+      item.addEventListener('click', () => {
+        setFontSize(size);
+        closeMenu();
+      });
+      menu.appendChild(item);
+    });
+
+    // Prevent menu clicks from stealing terminal focus
+    menu.addEventListener('pointerdown', (e) => e.preventDefault());
+
+    // Restore saved size
+    const saved = parseInt(localStorage.getItem('webterm-font-size'), 10);
+    if (saved && FONT_SIZES.includes(saved)) setFontSize(saved);
+    updateFontLabel();
+
+    // Toggle menu
+    btn.addEventListener('click', () => {
+      menu.classList.toggle('open');
+      if (menu.classList.contains('open')) highlightCurrent();
+    });
+
+    // Close when clicking elsewhere
+    document.addEventListener('pointerdown', (e) => {
+      if (menu.classList.contains('open') && !menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+        closeMenu();
+      }
+    });
+
+    function closeMenu() {
+      menu.classList.remove('open');
+    }
+
+    function highlightCurrent() {
+      const cur = term.options.fontSize;
+      menu.querySelectorAll('.font-menu-item').forEach(el => {
+        el.classList.toggle('selected', parseInt(el.dataset.size, 10) === cur);
+      });
+    }
+  }
+
+  function setFontSize(size) {
+    term.options.fontSize = size;
+    fitTerminal();
+    updateFontLabel();
+    localStorage.setItem('webterm-font-size', size);
+  }
+
+  function updateFontLabel() {
+    document.getElementById('font-size-label').textContent = term.options.fontSize;
   }
 
   // --- Gestures ---
