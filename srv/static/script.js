@@ -253,6 +253,7 @@
   // Track touch-scroll state for alternate screen scrolling
   let scrollAccumulator = 0;
   let lastTouchY = 0;
+  let altScrollActive = false; // sticky: once we start alt-scrolling, stay in it
 
   // One cell height in pixels (for scroll threshold)
   function cellHeight() {
@@ -273,6 +274,7 @@
       swipeCompletionText = '';
       scrollAccumulator = 0;
       lastTouchY = e.touches[0].clientY;
+      altScrollActive = false;
     }, { passive: true });
 
     container.addEventListener('touchmove', (e) => {
@@ -281,8 +283,12 @@
       const dy = e.touches[0].clientY - touchStartY;
 
       // In alternate screen (tmux, vim, less): convert touch drag to wheel events.
-      // xterm.js handles the mouse protocol negotiation with the app.
-      if (isAlternateScreen() && Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
+      // Once alt-scroll starts, it stays active for the whole gesture.
+      if (!altScrollActive && isAlternateScreen() && Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
+        altScrollActive = true;
+      }
+
+      if (altScrollActive) {
         e.preventDefault();
         const moveDelta = e.touches[0].clientY - lastTouchY;
         lastTouchY = e.touches[0].clientY;
@@ -322,7 +328,8 @@
       lastTouchY = 0;
 
       // If we were doing alternate-screen scroll, just consume the event
-      if (isAlternateScreen() && isSwiping) {
+      if (altScrollActive) {
+        altScrollActive = false;
         isSwiping = false;
         return;
       }
@@ -357,13 +364,13 @@
   // Dispatch a synthetic wheel event on the xterm viewport.
   // xterm.js converts this to the correct mouse protocol (SGR/X10)
   // that the running app (tmux, vim, etc.) negotiated.
-  // dir: -1 = scroll up, 1 = scroll down
+  // dir: -1 = scroll up, 1 = scroll down (exactly 1 line)
   function dispatchWheel(dir, touch) {
-    const el = document.querySelector('.xterm-screen');
+    const el = document.querySelector('.xterm-viewport');
     if (!el) return;
     el.dispatchEvent(new WheelEvent('wheel', {
-      deltaY: dir * 100,
-      deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+      deltaY: dir,
+      deltaMode: WheelEvent.DOM_DELTA_LINE,
       clientX: touch ? touch.clientX : 0,
       clientY: touch ? touch.clientY : 0,
       bubbles: true,
