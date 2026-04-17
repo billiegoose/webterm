@@ -250,16 +250,15 @@
     return term && term.buffer.active.type === 'alternate';
   }
 
-  // Track cumulative touch-scroll distance for converting to discrete mouse wheel events
+  // Track touch-scroll state for alternate screen scrolling
   let scrollAccumulator = 0;
   let lastTouchY = 0;
 
-  // Pixels of touch movement needed to trigger one 3-line scroll tick.
-  // Computed dynamically from actual terminal cell height.
-  function scrollThreshold() {
+  // One cell height in pixels (for scroll threshold)
+  function cellHeight() {
     const screen = document.querySelector('.xterm-screen');
-    if (screen && term) return (screen.getBoundingClientRect().height / term.rows) * 3;
-    return 60;
+    if (screen && term) return screen.getBoundingClientRect().height / term.rows;
+    return 20;
   }
 
   function setupGestures() {
@@ -281,25 +280,22 @@
       const dx = e.touches[0].clientX - touchStartX;
       const dy = e.touches[0].clientY - touchStartY;
 
-      // In alternate screen (tmux, vim, less): convert vertical drag to mouse wheel
+      // In alternate screen (tmux, vim, less): convert touch drag to wheel events.
+      // xterm.js handles the mouse protocol negotiation with the app.
       if (isAlternateScreen() && Math.abs(dy) > 10 && Math.abs(dy) > Math.abs(dx)) {
         e.preventDefault();
-        // Accumulate delta since last touchmove
-        scrollAccumulator += (e.touches[0].clientY - lastTouchY);
-        const thresh = scrollThreshold();
+        const moveDelta = e.touches[0].clientY - lastTouchY;
+        lastTouchY = e.touches[0].clientY;
+        scrollAccumulator += moveDelta;
 
-        while (Math.abs(scrollAccumulator) >= thresh) {
-          if (scrollAccumulator > 0) {
-            // Finger moves down = natural scroll = content moves up
-            sendMouseWheel(true);
-            scrollAccumulator -= thresh;
-          } else {
-            // Finger moves up = natural scroll = content moves down
-            sendMouseWheel(false);
-            scrollAccumulator += thresh;
-          }
+        const ch = cellHeight();
+        // Fire one wheel event per cell-height of movement
+        while (Math.abs(scrollAccumulator) >= ch) {
+          const dir = scrollAccumulator > 0 ? -1 : 1; // natural: finger down = wheel up
+          dispatchWheel(dir, e.touches[0]);
+          scrollAccumulator -= (scrollAccumulator > 0 ? ch : -ch);
         }
-        isSwiping = true; // Prevent other gesture handling
+        isSwiping = true;
         return;
       }
       lastTouchY = e.touches[0].clientY;
@@ -358,19 +354,21 @@
     }, { passive: true });
   }
 
-  // Send mouse wheel escape sequences to the PTY.
-  // tmux with `set -g mouse on` responds to these by scrolling in copy-mode.
-  // We send 3 lines per event for comfortable scroll speed.
-  function sendMouseWheel(up) {
-    // Try SGR first (\x1b[< encoding), then fall back to legacy X10.
-    // Most modern terminals (tmux included) negotiate SGR mode,
-    // but we send both — the one the app didn't request is ignored.
-    const button = up ? 64 : 65;
-    const lines = 3;
-    for (let i = 0; i < lines; i++) {
-      // SGR encoding: \x1b[<btn;col;rowM
-      sendKey(`\x1b[<${button};1;1M`);
-    }
+  // Dispatch a synthetic wheel event on the xterm viewport.
+  // xterm.js converts this to the correct mouse protocol (SGR/X10)
+  // that the running app (tmux, vim, etc.) negotiated.
+  // dir: -1 = scroll up, 1 = scroll down
+  function dispatchWheel(dir, touch) {
+    const el = document.querySelector('.xterm-screen');
+    if (!el) return;
+    el.dispatchEvent(new WheelEvent('wheel', {
+      deltaY: dir * 100,
+      deltaMode: WheelEvent.DOM_DELTA_PIXEL,
+      clientX: touch ? touch.clientX : 0,
+      clientY: touch ? touch.clientY : 0,
+      bubbles: true,
+      cancelable: true
+    }));
   }
 
   // --- Tap to reposition cursor ---
