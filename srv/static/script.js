@@ -253,7 +253,14 @@
   // Track cumulative touch-scroll distance for converting to discrete mouse wheel events
   let scrollAccumulator = 0;
   let lastTouchY = 0;
-  const SCROLL_LINE_HEIGHT = 30; // pixels per "line" of scroll
+
+  // Pixels of touch movement needed to trigger one 3-line scroll tick.
+  // Computed dynamically from actual terminal cell height.
+  function scrollThreshold() {
+    const screen = document.querySelector('.xterm-screen');
+    if (screen && term) return (screen.getBoundingClientRect().height / term.rows) * 3;
+    return 60;
+  }
 
   function setupGestures() {
     const container = document.getElementById('terminal-container');
@@ -279,16 +286,17 @@
         e.preventDefault();
         // Accumulate delta since last touchmove
         scrollAccumulator += (e.touches[0].clientY - lastTouchY);
+        const thresh = scrollThreshold();
 
-        while (Math.abs(scrollAccumulator) >= SCROLL_LINE_HEIGHT) {
-          if (scrollAccumulator < 0) {
-            // Scroll up — send mouse wheel up
+        while (Math.abs(scrollAccumulator) >= thresh) {
+          if (scrollAccumulator > 0) {
+            // Finger moves down = natural scroll = content moves up
             sendMouseWheel(true);
-            scrollAccumulator += SCROLL_LINE_HEIGHT;
+            scrollAccumulator -= thresh;
           } else {
-            // Scroll down — send mouse wheel down
+            // Finger moves up = natural scroll = content moves down
             sendMouseWheel(false);
-            scrollAccumulator -= SCROLL_LINE_HEIGHT;
+            scrollAccumulator += thresh;
           }
         }
         isSwiping = true; // Prevent other gesture handling
