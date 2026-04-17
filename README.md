@@ -1,57 +1,64 @@
-# Go Shelley Template
+# WebTerm
 
-This is a starter template for building Go web applications on exe.dev. It demonstrates end-to-end usage including HTTP handlers, authentication, database integration, and deployment.
+A mobile-friendly web terminal for [exe.dev](https://exe.dev) VMs. Built with Go, xterm.js, and WebSockets.
 
-Use this as a foundation to build your own service.
+## Features
 
-## Building and Running
+**Terminal**
+- Full PTY-backed bash shell over WebSocket
+- xterm.js with 256-color support, clickable links, 5000-line scrollback
+- Proper UTF-8 handling (emoji, Unicode symbols, etc.)
+- Auto-reconnect on disconnect
 
-Build with `make build`, then run `./srv`. The server listens on port 8000 by default.
+**Mobile-first UI**
+- Quick-action bar: `Tab`, `Esc`, `↑`, `↓`, `|`, `~`, `/`
+- Two-tap **Ctrl** submenu: tap Ctrl then pick C/D/Z/L/A/E/R/U/W
+- Buttons don't steal focus — on-screen keyboard stays open
+- `interactive-widget=resizes-content` viewport meta + flexbox layout so the terminal resizes when the keyboard opens
 
-## Running as a systemd service
+**Gestures**
+- **Swipe right** → Tab (autocomplete)
+- **Swipe left** → Alt+B (back one word)
+- **Swipe up** → previous command (only when scrolled to bottom)
+- **Tap on cursor row** → reposition cursor (sends arrow keys, like iTerm2)
 
-To run the server as a systemd service:
+**Command history & bookmarks**
+- Commands are saved to SQLite automatically
+- Searchable history panel (⏱ button)
+- Bookmark commands with labels (★ button)
+- Tap any history/bookmark entry to paste it into the terminal
 
-```bash
-# Install the service file
-sudo cp srv.service /etc/systemd/system/srv.service
-
-# Reload systemd and enable the service
-sudo systemctl daemon-reload
-sudo systemctl enable srv.service
-
-# Start the service
-sudo systemctl start srv
-
-# Check status
-systemctl status srv
-
-# View logs
-journalctl -u srv -f
-```
-
-To restart after code changes:
+## Running
 
 ```bash
 make build
-sudo systemctl restart srv
+./webterm -listen :8000
 ```
 
-## Authorization
+Or as a systemd service:
 
-exe.dev provides authorization headers and login/logout links
-that this template uses.
+```bash
+sudo cp srv.service /etc/systemd/system/webterm.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now webterm
+```
 
-When proxied through exed, requests will include `X-ExeDev-UserID` and
-`X-ExeDev-Email` if the user is authenticated via exe.dev.
-
-## Database
-
-This template uses sqlite (`db.sqlite3`). SQL queries are managed with sqlc.
+Then visit `https://<vmname>.exe.xyz:8000/`.
 
 ## Code layout
 
-- `cmd/srv`: main package (binary entrypoint)
-- `srv`: HTTP server logic (handlers)
-- `srv/templates`: Go HTML templates
-- `db`: SQLite open + migrations (001-base.sql)
+```
+cmd/srv/          entrypoint
+srv/
+  server.go       HTTP handlers, WebSocket PTY, REST API
+  templates/      HTML (single page)
+  static/         CSS + JS (xterm.js frontend)
+db/
+  migrations/     SQLite schema (history, bookmarks)
+  db.go           open + migrate
+```
+
+## Tech
+
+- **Backend**: Go, [gorilla/websocket](https://github.com/gorilla/websocket), [creack/pty](https://github.com/creack/pty), SQLite
+- **Frontend**: [xterm.js](https://xtermjs.org/) v5.5, vanilla JS, CSS flexbox
