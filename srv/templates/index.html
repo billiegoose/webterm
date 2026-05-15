@@ -12,7 +12,7 @@ Retrieved 2026-04-15, License - CC BY-SA 4.0
 <meta name="mobile-web-app-capable" content="yes">
 <title>WebTerm — {{.Hostname}}</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css">
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v={{.Version}}">
 </head>
 <body>
   <!-- Top toolbar -->
@@ -86,6 +86,6 @@ Retrieved 2026-04-15, License - CC BY-SA 4.0
 <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
-<script src="/static/script.js"></script>
+<script src="/static/script.js?v={{.Version}}"></script>
 </body>
 </html>

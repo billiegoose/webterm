@@ -1,8 +1,10 @@
 package srv
 
 import (
+	"crypto/sha256"
 	"database/sql"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -29,6 +31,7 @@ type Server struct {
 	Hostname     string
 	TemplatesDir string
 	StaticDir    string
+	Version      string // short hash of static assets for cache busting
 }
 
 // wsMessage is the JSON message format for WebSocket communication.
@@ -71,10 +74,29 @@ func New(dbPath, hostname string) (*Server, error) {
 		TemplatesDir: filepath.Join(baseDir, "templates"),
 		StaticDir:    filepath.Join(baseDir, "static"),
 	}
+	srv.Version = srv.hashStaticAssets()
 	if err := srv.setUpDatabase(dbPath); err != nil {
 		return nil, err
 	}
 	return srv, nil
+}
+
+// hashStaticAssets computes a short hash of all static files for cache busting.
+func (s *Server) hashStaticAssets() string {
+	h := sha256.New()
+	_ = filepath.Walk(s.StaticDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		h.Write([]byte(path))
+		h.Write(data)
+		return nil
+	})
+	return hex.EncodeToString(h.Sum(nil))[:12]
 }
 
 // setUpDatabase opens the SQLite database and runs migrations.
@@ -127,10 +149,13 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
 	data := struct {
 		Hostname string
+		Version  string
 	}{
 		Hostname: s.Hostname,
+		Version:  s.Version,
 	}
 	if err := tmpl.Execute(w, data); err != nil {
 		slog.Error("execute template", "error", err)
