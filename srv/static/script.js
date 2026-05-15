@@ -329,6 +329,15 @@
     }
   }
 
+  // Stop touch events on the select overlay from reaching the terminal
+  // gesture handlers underneath. This lets native text selection work.
+  (function () {
+    const overlay = document.getElementById('select-overlay');
+    ['touchstart','touchmove','touchend','touchcancel'].forEach(evt => {
+      overlay.addEventListener(evt, (e) => e.stopPropagation());
+    });
+  })();
+
   // --- Gestures ---
   // --- Alternate screen detection (tmux, vim, less, etc.) ---
   function isAlternateScreen() {
@@ -363,7 +372,7 @@
     }, { passive: true });
 
     container.addEventListener('touchmove', (e) => {
-      if (e.touches.length !== 1) return;
+      if (selectMode || e.touches.length !== 1) return;
       const dx = e.touches[0].clientX - touchStartX;
       const dy = e.touches[0].clientY - touchStartY;
 
@@ -411,6 +420,7 @@
     container.addEventListener('touchend', (e) => {
       hideSwipeHint();
       lastTouchY = 0;
+      if (selectMode) return;
 
       // If we were doing alternate-screen scroll, just consume the event
       if (altScrollActive) {

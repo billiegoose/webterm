@@ -90,6 +90,7 @@ body{
   background:var(--bg);
   overflow:auto;-webkit-overflow-scrolling:touch;
   cursor:text;
+  touch-action:auto; /* override body's manipulation — allow native text selection */
 }
 #select-overlay.hidden{display:none}
 #select-content{
@@ -98,6 +99,7 @@ body{
   font-size:inherit;
   color:var(--text);white-space:pre;line-height:1.2;
   user-select:text;-webkit-user-select:text;
+  -webkit-touch-callout:default;
   tab-size:8;
 }
 
