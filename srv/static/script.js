@@ -19,6 +19,7 @@
   let touchStartTime = 0;
   let isSwiping = false;
   let swipeCompletionText = '';
+  let selectMode = false;
 
   // --- Init ---
   document.addEventListener('DOMContentLoaded', init);
@@ -82,6 +83,7 @@
 
     // Track current input line for history/autocomplete
     term.onData((data) => {
+      if (selectMode) return; // Block input in select mode
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'input', data: toBase64(data) }));
       }
@@ -241,6 +243,7 @@
     document.getElementById('btn-menu').addEventListener('click', () => {
       showToast('Swipe → autocomplete · ← back word · ↑ prev cmd');
     });
+    document.getElementById('btn-select').addEventListener('click', toggleSelectMode);
     setupFontSizePicker();
   }
 
@@ -290,6 +293,42 @@
     });
   }
 
+  // --- Select mode (frozen text selection) ---
+  function toggleSelectMode() {
+    selectMode = !selectMode;
+    const overlay = document.getElementById('select-overlay');
+    const btn = document.getElementById('btn-select');
+
+    if (selectMode) {
+      // Close any open panel first
+      if (panelMode) closePanel();
+
+      // Read all lines from the active buffer (works for normal + alternate/tmux)
+      const buf = term.buffer.active;
+      const lines = [];
+      for (let i = 0; i < buf.length; i++) {
+        const line = buf.getLine(i);
+        if (line) lines.push(line.translateToString(true));
+      }
+      // Trim trailing empty lines
+      while (lines.length > 0 && lines[lines.length - 1].trim() === '') lines.pop();
+
+      const pre = document.getElementById('select-content');
+      pre.textContent = lines.join('\n');
+      pre.style.fontSize = term.options.fontSize + 'px';
+
+      overlay.classList.remove('hidden');
+      btn.classList.add('active');
+
+      // Scroll to bottom (most recent output)
+      overlay.scrollTop = overlay.scrollHeight;
+    } else {
+      overlay.classList.add('hidden');
+      btn.classList.remove('active');
+      term.focus();
+    }
+  }
+
   // --- Gestures ---
   // --- Alternate screen detection (tmux, vim, less, etc.) ---
   function isAlternateScreen() {
@@ -312,7 +351,7 @@
     const container = document.getElementById('terminal-container');
 
     container.addEventListener('touchstart', (e) => {
-      if (e.touches.length !== 1) return;
+      if (selectMode || e.touches.length !== 1) return;
       touchStartX = e.touches[0].clientX;
       touchStartY = e.touches[0].clientY;
       touchStartTime = Date.now();
@@ -488,6 +527,8 @@
       closePanel();
       return;
     }
+    // Exit select mode if active
+    if (selectMode) toggleSelectMode();
     panelMode = mode;
     document.getElementById('panel-title').textContent = PANEL_TITLES[mode] || mode;
     document.getElementById('panel-search').value = '';

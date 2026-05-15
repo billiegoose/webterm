@@ -84,6 +84,23 @@ body{
 #terminal{height:100%;width:100%;overflow:hidden}
 .xterm{height:100%!important}
 
+/* === Select / copy overlay === */
+#select-overlay{
+  position:absolute;inset:0;z-index:50;
+  background:var(--bg);
+  overflow:auto;-webkit-overflow-scrolling:touch;
+  cursor:text;
+}
+#select-overlay.hidden{display:none}
+#select-content{
+  margin:0;padding:4px;
+  font-family:'SF Mono',SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;
+  font-size:inherit;
+  color:var(--text);white-space:pre;line-height:1.2;
+  user-select:text;-webkit-user-select:text;
+  tab-size:8;
+}
+
 /* === Quick-action bar === */
 #quick-bar{
   flex-shrink:0;

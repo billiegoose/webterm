@@ -22,6 +22,7 @@ Retrieved 2026-04-15, License - CC BY-SA 4.0
       <span id="toolbar-title">WebTerm</span>
     </div>
     <div id="toolbar-right">
+      <button id="btn-select" class="toolbar-btn" title="Select text">✂</button>
       <button id="btn-font" class="toolbar-btn" title="Font size"><span id="font-size-label">15</span></button>
       <button id="btn-history" class="toolbar-btn" title="History">⏱</button>
       <button id="btn-bookmarks" class="toolbar-btn" title="Bookmarks">★</button>
@@ -32,6 +33,7 @@ Retrieved 2026-04-15, License - CC BY-SA 4.0
   <!-- Terminal area -->
   <div id="terminal-container">
     <div id="terminal"></div>
+    <div id="select-overlay" class="hidden"><pre id="select-content"></pre></div>
   </div>
 
   <!-- Quick-action bar (mobile) -->
