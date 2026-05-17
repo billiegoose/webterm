@@ -34,6 +34,13 @@
     window.addEventListener('resize', debounce(fitTerminal, 100));
     // Expose for inline onclick
     window.closePanel = closePanel;
+
+    // Expose helper for programmatic input (e.g. from devtools / automation)
+    window.sendInput = function (text) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'input', data: toBase64(text) }));
+      }
+    };
   }
 
 
