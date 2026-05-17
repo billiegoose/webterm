@@ -50,7 +50,7 @@
       cursorBlink: true,
       cursorStyle: 'bar',
       fontSize: 15,
-      fontFamily: "'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace",
+      fontFamily: "'JetBrains Mono NF', 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace",
       theme: {
         background: '#0d1117',
         foreground: '#e6edf3',
