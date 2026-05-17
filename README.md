@@ -2,6 +2,10 @@
 
 A mobile-friendly web terminal for [exe.dev](https://exe.dev) VMs. Built with Go, xterm.js, and WebSockets.
 
+<p align="center">
+  <img src="screenshot.png" alt="WebTerm on mobile" width="390">
+</p>
+
 ## Features
 
 **Terminal**
