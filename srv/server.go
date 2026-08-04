@@ -48,7 +48,7 @@ type wsMessage struct {
 type historyEntry struct {
 	ID        int64  `json:"id"`
 	Command   string `json:"command"`
-	CreatedAt string `json:"created_at"`
+	CreatedAt string `json:"created_at,omitempty"`
 }
 
 // bookmarkEntry represents a saved bookmark.
@@ -90,6 +90,7 @@ func New(dbPath, hostname string) (*Server, error) {
 	if err := srv.setUpDatabase(dbPath); err != nil {
 		return nil, err
 	}
+	srv.ensureBashHistoryFlush()
 	return srv, nil
 }
 
@@ -124,6 +125,47 @@ func (s *Server) setUpDatabase(dbPath string) error {
 	return nil
 }
 
+// ensureBashHistoryFlush appends a PROMPT_COMMAND hook to ~/.bashrc so that
+// bash writes each command to ~/.bash_history immediately after execution.
+// Without this, bash only flushes history when the shell exits, and the
+// WebTerm history panel would be stale.
+func (s *Server) ensureBashHistoryFlush() {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		slog.Warn("cannot determine home dir for history flush hook", "error", err)
+		return
+	}
+
+	bashrc := filepath.Join(home, ".bashrc")
+	marker := "# webterm: flush history after every command"
+
+	data, err := os.ReadFile(bashrc)
+	if err != nil && !os.IsNotExist(err) {
+		slog.Warn("cannot read .bashrc", "error", err)
+		return
+	}
+
+	if strings.Contains(string(data), marker) {
+		return // already installed
+	}
+
+	snippet := "\n" + marker + "\n" +
+		`PROMPT_COMMAND="${PROMPT_COMMAND:+$PROMPT_COMMAND;}history -a"` + "\n"
+
+	f, err := os.OpenFile(bashrc, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		slog.Warn("cannot append to .bashrc", "error", err)
+		return
+	}
+	defer f.Close()
+
+	if _, err := f.WriteString(snippet); err != nil {
+		slog.Warn("failed to write history flush hook", "error", err)
+		return
+	}
+	slog.Info("installed bash history flush hook in .bashrc")
+}
+
 // Serve starts the HTTP server with all configured routes.
 func (s *Server) Serve(addr string) error {
 	mux := http.NewServeMux()
@@ -138,9 +180,8 @@ func (s *Server) Serve(addr string) error {
 	// Tmux sessions API
 	mux.HandleFunc("GET /api/sessions", s.handleGetSessions)
 
-	// Command history API
+	// Command history API (reads from ~/.bash_history)
 	mux.HandleFunc("GET /api/history", s.handleGetHistory)
-	mux.HandleFunc("POST /api/history", s.handlePostHistory)
 
 	// Bookmarks API
 	mux.HandleFunc("GET /api/bookmarks", s.handleGetBookmarks)
@@ -362,62 +403,60 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 // ---------------------------------------------------------------------------
 
 func (s *Server) handleGetHistory(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.DB.QueryContext(r.Context(),
-		"SELECT id, command, created_at FROM command_history ORDER BY created_at DESC LIMIT 200")
+	// Read bash history directly from ~/.bash_history.
+	// This is the same source that bash's Up-arrow / history command use.
+	home, err := os.UserHomeDir()
 	if err != nil {
-		slog.Error("query history", "error", err)
-		http.Error(w, "database error", http.StatusInternalServerError)
+		slog.Error("get home dir", "error", err)
+		http.Error(w, "server error", http.StatusInternalServerError)
 		return
 	}
-	defer rows.Close()
 
-	entries := make([]historyEntry, 0)
-	for rows.Next() {
-		var e historyEntry
-		var t time.Time
-		if err := rows.Scan(&e.ID, &e.Command, &t); err != nil {
-			slog.Error("scan history row", "error", err)
-			http.Error(w, "database error", http.StatusInternalServerError)
+	data, err := os.ReadFile(filepath.Join(home, ".bash_history"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte("[]"))
 			return
 		}
-		e.CreatedAt = t.Format(time.RFC3339)
-		entries = append(entries, e)
+		slog.Error("read bash_history", "error", err)
+		http.Error(w, "server error", http.StatusInternalServerError)
+		return
+	}
+
+	lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+
+	// Deduplicate, keeping the most recent occurrence of each command.
+	// Walk backwards so that the first occurrence we see is the latest.
+	seen := make(map[string]bool, len(lines))
+	var deduped []string
+	for i := len(lines) - 1; i >= 0; i-- {
+		cmd := strings.TrimSpace(lines[i])
+		if cmd == "" || seen[cmd] {
+			continue
+		}
+		seen[cmd] = true
+		deduped = append(deduped, cmd)
+	}
+
+	// Cap at 200 entries (already newest-first)
+	if len(deduped) > 200 {
+		deduped = deduped[:200]
+	}
+
+	// Build response — id is the position, no timestamp available from the file
+	entries := make([]historyEntry, len(deduped))
+	for i, cmd := range deduped {
+		entries[i] = historyEntry{
+			ID:      int64(i),
+			Command: cmd,
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(entries)
 }
 
-func (s *Server) handlePostHistory(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		Command string `json:"command"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, "invalid JSON", http.StatusBadRequest)
-		return
-	}
-	if body.Command == "" {
-		http.Error(w, "command is required", http.StatusBadRequest)
-		return
-	}
-
-	result, err := s.DB.ExecContext(r.Context(),
-		"INSERT INTO command_history (command) VALUES (?)", body.Command)
-	if err != nil {
-		slog.Error("insert history", "error", err)
-		http.Error(w, "database error", http.StatusInternalServerError)
-		return
-	}
-
-	id, _ := result.LastInsertId()
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(historyEntry{
-		ID:        id,
-		Command:   body.Command,
-		CreatedAt: time.Now().UTC().Format(time.RFC3339),
-	})
-}
 
 // ---------------------------------------------------------------------------
 // Bookmarks API

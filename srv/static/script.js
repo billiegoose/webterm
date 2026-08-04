@@ -6,7 +6,6 @@
   let ws = null;
   let term = null;
   let fitAddon = null;
-  let currentLine = '';
   let historyCache = [];
   let bookmarkCache = [];
   let panelMode = null; // 'history' | 'bookmarks' | null
@@ -102,21 +101,6 @@
       if (selectMode) return; // Block input in select mode
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'input', data: toBase64(data) }));
-      }
-      // Track line buffer for command detection
-      if (data === '\r') {
-        // Enter pressed — save to history
-        const cmd = currentLine.trim();
-        if (cmd.length > 0) {
-          saveHistory(cmd);
-        }
-        currentLine = '';
-      } else if (data === '\x7f' || data === '\b') {
-        currentLine = currentLine.slice(0, -1);
-      } else if (data === '\x03' || data === '\x04') {
-        currentLine = '';
-      } else if (data.charCodeAt(0) >= 32) {
-        currentLine += data;
       }
     });
   }
@@ -798,7 +782,6 @@
     content.innerHTML = items.map(item => `
       <div class="panel-item" data-cmd="${escHtml(item.command)}">
         <div class="panel-item-cmd" title="${escHtml(item.command)}">${escHtml(item.command)}</div>
-        <div class="panel-item-time">${timeAgo(item.created_at)}</div>
         <div class="panel-item-actions">
           <button class="panel-item-btn" onclick="event.stopPropagation();bookmarkFromHistory('${escAttr(item.command)}')" title="Bookmark">★</button>
         </div>
@@ -853,18 +836,6 @@
   }
 
   // --- API helpers ---
-  async function saveHistory(command) {
-    try {
-      await fetch('/api/history', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command })
-      });
-    } catch (e) {
-      console.warn('save history error', e);
-    }
-  }
-
   // Exposed globally for inline onclick
   window.bookmarkFromHistory = async function (command) {
     const label = prompt('Bookmark label (optional):') || '';
@@ -897,7 +868,6 @@
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'input', data: toBase64(cmd) }));
       }
-      currentLine = cmd;
       term.focus();
     }, 50);
   }
