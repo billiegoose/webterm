@@ -167,11 +167,10 @@
   /* Swipe pad button */
   .swipe-pad {
     position: relative;
-    width: 32px;
-    height: 28px;
     border-radius: 6px;
     border: 1px solid var(--border);
-    background: var(--btn-bg);
+    background: var(--bg);
+    padding: 5px 10px;
     cursor: pointer;
     touch-action: none;
     transition: border-color 0.15s, background 0.15s;
@@ -183,43 +182,21 @@
 
   /* Cross arrows inside the pad */
   .pad-arrows {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     pointer-events: none;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1;
+    transition: color 0.08s;
   }
-  .pad-arrow {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 8px;
-    color: #484f58;
-    transition: color 0.08s, transform 0.08s;
-  }
-  .pad-arrow.up    { grid-column: 2; grid-row: 1; }
-  .pad-arrow.down  { grid-column: 2; grid-row: 3; }
-  .pad-arrow.left  { grid-column: 1; grid-row: 2; }
-  .pad-arrow.right { grid-column: 3; grid-row: 2; }
-  .pad-center {
-    grid-column: 2; grid-row: 2;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 4px;
-    height: 4px;
-    background: #484f58;
-    border-radius: 50%;
-    margin: auto;
-    transition: background 0.08s;
-  }
-  .swipe-pad.engaged .pad-center {
-    background: var(--accent);
-  }
-  .pad-arrow.active {
+  .swipe-pad.dir-up .pad-arrows,
+  .swipe-pad.dir-down .pad-arrows,
+  .swipe-pad.dir-left .pad-arrows,
+  .swipe-pad.dir-right .pad-arrows {
     color: var(--accent);
-    transform: scale(1.4);
   }
 
   /* Ripple effect on fire */
@@ -274,13 +251,7 @@
     <button class="qbtn wide">Esc</button>
     <button class="qbtn wide">Ctrl</button>
     <div class="swipe-pad" id="swipe-pad">
-      <div class="pad-arrows">
-        <div class="pad-arrow up" data-dir="up">▲</div>
-        <div class="pad-arrow left" data-dir="left">◀</div>
-        <div class="pad-center"></div>
-        <div class="pad-arrow right" data-dir="right">▶</div>
-        <div class="pad-arrow down" data-dir="down">▼</div>
-      </div>
+      <div class="pad-arrows">✥</div>
     </div>
     <button class="qbtn">|</button>
     <button class="qbtn">~</button>
@@ -322,25 +293,18 @@
     left:  document.getElementById('ind-left'),
     right: document.getElementById('ind-right'),
   };
-  const padArrows = {
-    up:    pad.querySelector('.pad-arrow.up'),
-    down:  pad.querySelector('.pad-arrow.down'),
-    left:  pad.querySelector('.pad-arrow.left'),
-    right: pad.querySelector('.pad-arrow.right'),
-  };
-
   function clearHighlights() {
     for (const d in indicators) {
       indicators[d].classList.remove('active');
-      padArrows[d].classList.remove('active');
     }
+    pad.classList.remove('dir-up', 'dir-down', 'dir-left', 'dir-right');
   }
 
   function highlightDir(dir) {
     clearHighlights();
     if (dir) {
       indicators[dir].classList.add('active');
-      padArrows[dir].classList.add('active');
+      pad.classList.add('dir-' + dir);
     }
   }
 
