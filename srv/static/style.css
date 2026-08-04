@@ -216,6 +216,54 @@ body{
   background:rgba(88,166,255,.12);padding:1px 6px;border-radius:4px;
 }
 
+/* === Session picker === */
+#session-picker{
+  position:fixed;inset:0;z-index:500;
+  background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:24px;
+}
+#session-picker.hidden{display:none}
+#session-picker h2{
+  font-size:20px;font-weight:700;color:var(--accent);margin-bottom:4px;
+}
+#session-picker .sp-subtitle{
+  font-size:13px;color:var(--text-dim);margin-bottom:20px;
+}
+#session-list{
+  width:100%;max-width:360px;
+  display:flex;flex-direction:column;gap:6px;
+  max-height:60vh;overflow-y:auto;
+  margin-bottom:16px;
+}
+.sp-session{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 16px;border-radius:10px;
+  background:var(--surface);border:1px solid var(--border);
+  cursor:pointer;transition:border-color .15s,background .15s;
+}
+.sp-session:hover,.sp-session:active{border-color:var(--accent);background:var(--bg)}
+.sp-session-name{
+  font-size:15px;font-weight:600;color:var(--text);
+  font-family:'JetBrains Mono NF','SF Mono',SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;
+}
+.sp-session-meta{font-size:12px;color:var(--text-dim)}
+.sp-session-status{
+  margin-left:auto;font-size:11px;font-weight:600;
+  padding:2px 8px;border-radius:10px;
+}
+.sp-session-status.attached{background:rgba(63,185,80,.15);color:var(--success)}
+.sp-session-status.detached{background:rgba(139,148,158,.12);color:var(--text-dim)}
+.sp-new-btn{
+  width:100%;max-width:360px;
+  padding:14px;border-radius:10px;
+  background:var(--accent);color:var(--bg);
+  border:none;font-size:15px;font-weight:700;
+  cursor:pointer;transition:opacity .15s;
+}
+.sp-new-btn:hover,.sp-new-btn:active{opacity:.85}
+.sp-loading{color:var(--text-dim);font-size:14px}
+
 /* === Toast === */
 #toast{
   position:fixed;bottom:calc(var(--quickbar-h) + 16px);

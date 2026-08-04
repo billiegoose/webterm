@@ -12,6 +12,7 @@
   let panelMode = null; // 'history' | 'bookmarks' | null
   let reconnectDelay = 1000;
   let reconnectTimer = null;
+  let currentSession = null; // tmux session name
 
   // Swipe state
   let touchStartX = 0;
@@ -26,11 +27,11 @@
 
   function init() {
     setupTerminal();
-    connectWebSocket();
     setupQuickBar();
     setupToolbar();
     setupGestures();
     setupPanelSearch();
+    setupSessionPicker();
     window.addEventListener('resize', debounce(fitTerminal, 100));
     // Expose for inline onclick
     window.closePanel = closePanel;
@@ -41,6 +42,14 @@
         ws.send(JSON.stringify({ type: 'input', data: toBase64(text) }));
       }
     };
+
+    // If we have a saved session, reconnect directly; otherwise show picker
+    const saved = sessionStorage.getItem('webterm-session');
+    if (saved) {
+      startSession(saved);
+    } else {
+      showSessionPicker();
+    }
   }
 
 
@@ -128,10 +137,75 @@
     }
   }
 
+  // --- Session picker ---
+  function setupSessionPicker() {
+    document.getElementById('sp-new').addEventListener('click', () => {
+      startSession('');
+    });
+  }
+
+  async function showSessionPicker() {
+    const picker = document.getElementById('session-picker');
+    const list = document.getElementById('session-list');
+    picker.classList.remove('hidden');
+    list.innerHTML = '<div class="sp-loading">Loading sessions…</div>';
+
+    try {
+      const res = await fetch('/api/sessions');
+      const sessions = await res.json();
+      if (sessions.length === 0) {
+        list.innerHTML = '<div class="sp-loading">No existing sessions</div>';
+      } else {
+        list.innerHTML = sessions.map(s => `
+          <div class="sp-session" data-name="${escHtml(s.name)}">
+            <div>
+              <div class="sp-session-name">${escHtml(s.name)}</div>
+              <div class="sp-session-meta">${s.windows} window${s.windows !== 1 ? 's' : ''} · ${timeAgo(s.created)}</div>
+            </div>
+            <span class="sp-session-status ${s.attached ? 'attached' : 'detached'}">${s.attached ? 'attached' : 'detached'}</span>
+          </div>
+        `).join('');
+        list.querySelectorAll('.sp-session').forEach(el => {
+          el.addEventListener('click', () => startSession(el.dataset.name));
+        });
+      }
+    } catch (e) {
+      list.innerHTML = '<div class="sp-loading">Failed to load sessions</div>';
+    }
+  }
+
+  function startSession(name) {
+    currentSession = name;
+    if (name) {
+      sessionStorage.setItem('webterm-session', name);
+    }
+    document.getElementById('session-picker').classList.add('hidden');
+    connectWebSocket(name);
+    term.focus();
+  }
+
+  function disconnectSession() {
+    // Close current connection and go back to session picker
+    currentSession = null;
+    sessionStorage.removeItem('webterm-session');
+    if (reconnectTimer) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+    if (ws) {
+      ws.close();
+      ws = null;
+    }
+    term.clear();
+    term.reset();
+    showSessionPicker();
+  }
+
   // --- WebSocket ---
-  function connectWebSocket() {
+  function connectWebSocket(session) {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    ws = new WebSocket(`${proto}//${location.host}/ws`);
+    const sessionParam = session ? `?session=${encodeURIComponent(session)}` : '';
+    ws = new WebSocket(`${proto}//${location.host}/ws${sessionParam}`);
 
     ws.onopen = () => {
       reconnectDelay = 1000;
@@ -143,6 +217,10 @@
         const msg = JSON.parse(ev.data);
         if (msg.type === 'output' && msg.data) {
           term.write(fromBase64(msg.data));
+        } else if (msg.type === 'session') {
+          // Server tells us the actual session name (for new sessions)
+          currentSession = msg.data;
+          sessionStorage.setItem('webterm-session', msg.data);
         }
       } catch (e) {
         console.warn('ws message error', e);
@@ -150,6 +228,7 @@
     };
 
     ws.onclose = () => {
+      if (currentSession === null) return; // intentional disconnect, don't reconnect
       term.write('\r\n\x1b[33m[Connection closed. Reconnecting...]\x1b[0m\r\n');
       scheduleReconnect();
     };
@@ -161,9 +240,15 @@
 
   function scheduleReconnect() {
     if (reconnectTimer) return;
+    // If we've been failing too long, the session probably doesn't exist anymore
+    if (reconnectDelay > 8000) {
+      term.write('\r\n\x1b[31m[Session lost. Returning to session picker...]\x1b[0m\r\n');
+      setTimeout(() => disconnectSession(), 1000);
+      return;
+    }
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null;
-      connectWebSocket();
+      connectWebSocket(currentSession);
       reconnectDelay = Math.min(reconnectDelay * 1.5, 10000);
     }, reconnectDelay);
   }
@@ -248,7 +333,7 @@
       if (textarea) textarea.focus();
     });
     document.getElementById('btn-menu').addEventListener('click', () => {
-      showToast('Swipe → autocomplete · ← back word · ↑ prev cmd');
+      disconnectSession();
     });
     document.getElementById('btn-select').addEventListener('click', toggleSelectMode);
     setupFontSizePicker();

@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -55,6 +56,14 @@ type bookmarkEntry struct {
 	Command   string `json:"command"`
 	Label     string `json:"label"`
 	CreatedAt string `json:"created_at"`
+}
+
+// tmuxSession represents a tmux session returned by the sessions API.
+type tmuxSession struct {
+	Name     string `json:"name"`
+	Windows  int    `json:"windows"`
+	Created  string `json:"created"`
+	Attached bool   `json:"attached"`
 }
 
 var upgrader = websocket.Upgrader{
@@ -123,6 +132,9 @@ func (s *Server) Serve(addr string) error {
 	// WebSocket terminal
 	mux.HandleFunc("/ws", s.handleWebSocket)
 
+	// Tmux sessions API
+	mux.HandleFunc("GET /api/sessions", s.handleGetSessions)
+
 	// Command history API
 	mux.HandleFunc("GET /api/history", s.handleGetHistory)
 	mux.HandleFunc("POST /api/history", s.handlePostHistory)
@@ -163,9 +175,50 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 // ---------------------------------------------------------------------------
-// WebSocket terminal
+// Tmux sessions API
 // ---------------------------------------------------------------------------
 
+// handleGetSessions returns a JSON array of available tmux sessions.
+func (s *Server) handleGetSessions(w http.ResponseWriter, r *http.Request) {
+	out, err := exec.Command("tmux", "list-sessions", "-F",
+		"#{session_name}\t#{session_windows}\t#{session_created}\t#{?session_attached,true,false}").Output()
+	if err != nil {
+		// tmux not running or no sessions — return empty list
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("[]"))
+		return
+	}
+
+	var sessions []tmuxSession
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if line == "" {
+			continue
+		}
+		parts := strings.SplitN(line, "\t", 4)
+		if len(parts) != 4 {
+			continue
+		}
+		windows, _ := strconv.Atoi(parts[1])
+		epoch, _ := strconv.ParseInt(parts[2], 10, 64)
+		created := time.Unix(epoch, 0).UTC().Format(time.RFC3339)
+		attached := parts[3] == "true"
+		sessions = append(sessions, tmuxSession{
+			Name:     parts[0],
+			Windows:  windows,
+			Created:  created,
+			Attached: attached,
+		})
+	}
+
+	if sessions == nil {
+		sessions = []tmuxSession{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(sessions)
+}
+
+// handleWebSocket handles terminal WebSocket connections using tmux sessions.
 func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -174,25 +227,40 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	// Spawn bash via PTY
-	cmd := exec.Command("bash", "--login")
+	// Build tmux command based on session query param
+	session := r.URL.Query().Get("session")
+	var cmd *exec.Cmd
+	if session != "" {
+		cmd = exec.Command("tmux", "attach-session", "-t", session)
+		slog.Info("attaching to tmux session", "session", session)
+	} else {
+		// Generate a short name for the new session
+		session = fmt.Sprintf("web-%d", time.Now().UnixMilli()%100000)
+		cmd = exec.Command("tmux", "new-session", "-s", session)
+		slog.Info("creating new tmux session", "session", session)
+	}
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
+
 	ptmx, err := pty.Start(cmd)
 	if err != nil {
 		slog.Error("pty start", "error", err)
-		_ = conn.WriteJSON(wsMessage{Type: "output", Data: base64.StdEncoding.EncodeToString([]byte("Error: " + err.Error() + "\r\n"))})
+		errMsg := fmt.Sprintf("Error: %s\r\n", err.Error())
+		_ = conn.WriteJSON(wsMessage{Type: "output", Data: base64.StdEncoding.EncodeToString([]byte(errMsg))})
 		return
 	}
 	defer func() {
 		_ = ptmx.Close()
-		// Kill the process if it's still running
+		// Kill the tmux client process (attach/new-session), NOT the tmux server.
+		// The tmux session persists.
 		if cmd.Process != nil {
 			_ = cmd.Process.Kill()
 		}
 		_ = cmd.Wait()
 	}()
 
-	// Use a WaitGroup to coordinate goroutines
+	// Tell the client which session it's connected to
+	_ = conn.WriteJSON(wsMessage{Type: "session", Data: session})
+
 	var wg sync.WaitGroup
 	done := make(chan struct{})
 
