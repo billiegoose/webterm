@@ -180,24 +180,18 @@
     background: #1a2332;
   }
 
-  /* Cross arrows inside the pad */
-  .pad-arrows {
-    display: flex;
-    align-items: center;
-    justify-content: center;
+  /* Cross arrows SVG inside the pad */
+  .pad-svg {
+    display: block;
     pointer-events: none;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--text);
-    line-height: 1;
-    transition: color 0.08s;
   }
-  .swipe-pad.dir-up .pad-arrows,
-  .swipe-pad.dir-down .pad-arrows,
-  .swipe-pad.dir-left .pad-arrows,
-  .swipe-pad.dir-right .pad-arrows {
-    color: var(--accent);
-  }
+  .pad-svg .arrow { fill: #484f58; transition: fill 0.08s; }
+  .pad-svg .dot   { fill: #484f58; transition: fill 0.08s; }
+  .swipe-pad.engaged .pad-svg .dot { fill: var(--accent); }
+  .swipe-pad.dir-up    .pad-svg .arrow-up    { fill: var(--accent); }
+  .swipe-pad.dir-down  .pad-svg .arrow-down  { fill: var(--accent); }
+  .swipe-pad.dir-left  .pad-svg .arrow-left  { fill: var(--accent); }
+  .swipe-pad.dir-right .pad-svg .arrow-right { fill: var(--accent); }
 
   /* Ripple effect on fire */
   .swipe-pad .ripple {
@@ -251,7 +245,13 @@
     <button class="qbtn wide">Esc</button>
     <button class="qbtn wide">Ctrl</button>
     <div class="swipe-pad" id="swipe-pad">
-      <div class="pad-arrows">✥</div>
+      <svg class="pad-svg" width="16" height="16" viewBox="0 0 16 16">
+        <polygon class="arrow arrow-up"    points="8,1 10.5,5 5.5,5"/>
+        <polygon class="arrow arrow-down"  points="8,15 10.5,11 5.5,11"/>
+        <polygon class="arrow arrow-left"  points="1,8 5,5.5 5,10.5"/>
+        <polygon class="arrow arrow-right" points="15,8 11,5.5 11,10.5"/>
+        <circle  class="dot" cx="8" cy="8" r="1.2"/>
+      </svg>
     </div>
     <button class="qbtn">|</button>
     <button class="qbtn">~</button>
