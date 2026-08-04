@@ -9,13 +9,16 @@ A mobile-friendly web terminal for [exe.dev](https://exe.dev) VMs. Built with Go
 ## Features
 
 **Terminal**
-- Full PTY-backed bash shell over WebSocket
+- Full PTY-backed bash shell over WebSocket via tmux
+- Session picker on launch — resume existing tmux sessions or start new ones
+- Multiple concurrent sessions with automatic naming
 - xterm.js with 256-color support, clickable links, 5000-line scrollback
 - Proper UTF-8 handling (emoji, Unicode symbols, etc.)
 - Auto-reconnect on disconnect
 
 **Mobile-first UI**
-- Quick-action bar: `Tab`, `Esc`, d-pad (swipe for ↑↓←→), `|`, `~`, `/`
+- Quick-action bar: `Tab`, `Esc`, `Ctrl`, d-pad, `|`, `~`, `/`
+- **D-pad button**: touch and swipe in any direction to send arrow keys (↑↓←→), with auto-repeat on hold
 - Two-tap **Ctrl** submenu: tap Ctrl then pick C/D/Z/L/A/E/R/U/W
 - Buttons don't steal focus — on-screen keyboard stays open
 - `interactive-widget=resizes-content` viewport meta + flexbox layout so the terminal resizes when the keyboard opens
