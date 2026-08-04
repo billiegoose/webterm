@@ -32,6 +32,7 @@ type Server struct {
 	Hostname     string
 	TemplatesDir string
 	StaticDir    string
+	TmuxConf     string // path to repo-managed tmux.conf
 	Version      string // short hash of static assets for cache busting
 }
 
@@ -78,10 +79,12 @@ var upgrader = websocket.Upgrader{
 func New(dbPath, hostname string) (*Server, error) {
 	_, thisFile, _, _ := runtime.Caller(0)
 	baseDir := filepath.Dir(thisFile)
+	repoDir := filepath.Dir(baseDir)
 	srv := &Server{
 		Hostname:     hostname,
 		TemplatesDir: filepath.Join(baseDir, "templates"),
 		StaticDir:    filepath.Join(baseDir, "static"),
+		TmuxConf:     filepath.Join(repoDir, "tmux.conf"),
 	}
 	srv.Version = srv.hashStaticAssets()
 	if err := srv.setUpDatabase(dbPath); err != nil {
@@ -231,12 +234,12 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	session := r.URL.Query().Get("session")
 	var cmd *exec.Cmd
 	if session != "" {
-		cmd = exec.Command("tmux", "attach-session", "-t", session)
+		cmd = exec.Command("tmux", "-f", s.TmuxConf, "attach-session", "-t", session)
 		slog.Info("attaching to tmux session", "session", session)
 	} else {
 		// Generate a short name for the new session
 		session = fmt.Sprintf("web-%d", time.Now().UnixMilli()%100000)
-		cmd = exec.Command("tmux", "new-session", "-s", session)
+		cmd = exec.Command("tmux", "-f", s.TmuxConf, "new-session", "-s", session)
 		slog.Info("creating new tmux session", "session", session)
 	}
 	cmd.Env = append(os.Environ(), "TERM=xterm-256color")
