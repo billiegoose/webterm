@@ -143,7 +143,7 @@ body{
 /* === Swipe pad (d-pad button) === */
 .swipe-pad{touch-action:none;padding:5px 12px}
 .swipe-pad.engaged{border-color:var(--accent);background:#1a2332}
-.pad-svg{display:block;pointer-events:none}
+.pad-svg{pointer-events:none;vertical-align:middle}
 .pad-svg .arrow{fill:var(--text);transition:fill .08s}
 .pad-svg .dot{fill:var(--text);transition:fill .08s}
 .swipe-pad.engaged .pad-svg .dot{fill:var(--accent)}
