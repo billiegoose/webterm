@@ -323,6 +323,109 @@
         term.focus();
       });
     });
+
+    // --- Swipe pad (d-pad) ---
+    setupSwipePad();
+  }
+
+  function setupSwipePad() {
+    const pad = document.getElementById('swipe-pad');
+    if (!pad) return;
+
+    const THRESHOLD = 12;
+    const REPEAT_DELAY = 400;
+    const REPEAT_INTERVAL = 80;
+    const DIR_SEQS = {
+      up: '\x1b[A', down: '\x1b[B', left: '\x1b[D', right: '\x1b[C'
+    };
+
+    let tracking = false, startX = 0, startY = 0, currentDir = null, repeatTimer = null;
+
+    function clearPadHighlights() {
+      pad.classList.remove('dir-up', 'dir-down', 'dir-left', 'dir-right');
+    }
+
+    function highlightPadDir(dir) {
+      clearPadHighlights();
+      if (dir) pad.classList.add('dir-' + dir);
+    }
+
+    function spawnRipple(dir) {
+      const r = document.createElement('div');
+      r.className = 'ripple';
+      const sz = 20;
+      const cx = pad.offsetWidth / 2, cy = pad.offsetHeight / 2;
+      const offsets = { up: [0, -8], down: [0, 8], left: [-10, 0], right: [10, 0] };
+      const [ox, oy] = offsets[dir] || [0, 0];
+      r.style.width = sz + 'px'; r.style.height = sz + 'px';
+      r.style.left = (cx + ox - sz / 2) + 'px';
+      r.style.top = (cy + oy - sz / 2) + 'px';
+      pad.appendChild(r);
+      r.addEventListener('animationend', () => r.remove());
+    }
+
+    function firePadDir(dir, isRepeat) {
+      if (!dir) return;
+      sendKey(DIR_SEQS[dir]);
+      highlightPadDir(dir);
+      if (!isRepeat) spawnRipple(dir);
+    }
+
+    function detectDir(dx, dy) {
+      const ax = Math.abs(dx), ay = Math.abs(dy);
+      if (Math.max(ax, ay) < THRESHOLD) return null;
+      return ax > ay ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+    }
+
+    function stopRepeat() {
+      if (repeatTimer) { clearTimeout(repeatTimer); clearInterval(repeatTimer); repeatTimer = null; }
+    }
+
+    function onPadStart(x, y, e) {
+      e.preventDefault();
+      tracking = true; startX = x; startY = y; currentDir = null;
+      pad.classList.add('engaged');
+      clearPadHighlights();
+    }
+
+    function onPadMove(x, y) {
+      if (!tracking) return;
+      const dir = detectDir(x - startX, y - startY);
+      if (dir !== currentDir) {
+        currentDir = dir;
+        highlightPadDir(dir);
+        stopRepeat();
+        if (dir) {
+          firePadDir(dir, false);
+          repeatTimer = setTimeout(() => {
+            repeatTimer = setInterval(() => {
+              if (currentDir === dir) firePadDir(dir, true);
+            }, REPEAT_INTERVAL);
+          }, REPEAT_DELAY);
+        }
+      }
+    }
+
+    function onPadEnd() {
+      if (!tracking) return;
+      tracking = false;
+      stopRepeat();
+      pad.classList.remove('engaged');
+      setTimeout(() => { if (!tracking) clearPadHighlights(); }, 200);
+    }
+
+    pad.addEventListener('touchstart', (e) => {
+      onPadStart(e.touches[0].clientX, e.touches[0].clientY, e);
+    }, { passive: false });
+    pad.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      onPadMove(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+    pad.addEventListener('touchend', (e) => { e.preventDefault(); onPadEnd(); });
+    pad.addEventListener('touchcancel', () => onPadEnd());
+    pad.addEventListener('mousedown', (e) => onPadStart(e.clientX, e.clientY, e));
+    document.addEventListener('mousemove', (e) => { if (tracking) onPadMove(e.clientX, e.clientY); });
+    document.addEventListener('mouseup', () => onPadEnd());
   }
 
   function exitCtrlMode() {

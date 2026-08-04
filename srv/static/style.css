@@ -139,6 +139,27 @@ body{
 /* No :hover/:active — pointerdown preventDefault breaks state cleanup on mobile.
    Visual feedback is handled via JS .qk-pressed class instead. */
 .qk.qk-pressed{background:var(--border);color:var(--accent)}
+
+/* === Swipe pad (d-pad button) === */
+.swipe-pad{touch-action:none;padding:5px 10px}
+.swipe-pad.engaged{border-color:var(--accent);background:#1a2332}
+.pad-svg{display:block;pointer-events:none}
+.pad-svg .arrow{fill:#484f58;transition:fill .08s}
+.pad-svg .dot{fill:#484f58;transition:fill .08s}
+.swipe-pad.engaged .pad-svg .dot{fill:var(--accent)}
+.swipe-pad.dir-up .pad-svg .arrow-up{fill:var(--accent)}
+.swipe-pad.dir-down .pad-svg .arrow-down{fill:var(--accent)}
+.swipe-pad.dir-left .pad-svg .arrow-left{fill:var(--accent)}
+.swipe-pad.dir-right .pad-svg .arrow-right{fill:var(--accent)}
+.swipe-pad .ripple{
+  position:absolute;border-radius:50%;
+  background:rgba(88,166,255,.25);pointer-events:none;
+  animation:ripple-out .35s ease-out forwards;
+}
+@keyframes ripple-out{
+  0%{transform:scale(.3);opacity:1}
+  100%{transform:scale(2.5);opacity:0}
+}
 #qk-normal,#qk-ctrl{display:flex;align-items:center;gap:2px;height:100%}
 #qk-normal.hidden,#qk-ctrl.hidden{display:none}
 .qk-back{color:var(--text-dim)!important;font-size:11px!important}

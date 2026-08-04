@@ -15,7 +15,7 @@ A mobile-friendly web terminal for [exe.dev](https://exe.dev) VMs. Built with Go
 - Auto-reconnect on disconnect
 
 **Mobile-first UI**
-- Quick-action bar: `Tab`, `Esc`, `↑`, `↓`, `|`, `~`, `/`
+- Quick-action bar: `Tab`, `Esc`, d-pad (swipe for ↑↓←→), `|`, `~`, `/`
 - Two-tap **Ctrl** submenu: tap Ctrl then pick C/D/Z/L/A/E/R/U/W
 - Buttons don't steal focus — on-screen keyboard stays open
 - `interactive-widget=resizes-content` viewport meta + flexbox layout so the terminal resizes when the keyboard opens
