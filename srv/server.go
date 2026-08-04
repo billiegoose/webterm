@@ -251,6 +251,18 @@ func (s *Server) handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		_ = conn.WriteJSON(wsMessage{Type: "output", Data: base64.StdEncoding.EncodeToString([]byte(errMsg))})
 		return
 	}
+
+	// Set initial PTY size from query params so tmux starts at the right dimensions.
+	// This avoids the race where the MOTD prints at 80x24 before the client sends resize.
+	if colsStr := r.URL.Query().Get("cols"); colsStr != "" {
+		if rowsStr := r.URL.Query().Get("rows"); rowsStr != "" {
+			cols, _ := strconv.ParseUint(colsStr, 10, 16)
+			rows, _ := strconv.ParseUint(rowsStr, 10, 16)
+			if cols > 0 && rows > 0 {
+				_ = pty.Setsize(ptmx, &pty.Winsize{Cols: uint16(cols), Rows: uint16(rows)})
+			}
+		}
+	}
 	defer func() {
 		_ = ptmx.Close()
 		// Kill the tmux client process (attach/new-session), NOT the tmux server.

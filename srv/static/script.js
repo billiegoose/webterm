@@ -204,8 +204,16 @@
   // --- WebSocket ---
   function connectWebSocket(session) {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const sessionParam = session ? `?session=${encodeURIComponent(session)}` : '';
-    ws = new WebSocket(`${proto}//${location.host}/ws${sessionParam}`);
+    // Fit first so we know the right dimensions, then pass them as query params
+    // so the server can set the PTY size before tmux starts (avoids MOTD at wrong size).
+    try { fitAddon.fit(); } catch (e) { /* ignore */ }
+    const params = new URLSearchParams();
+    if (session) params.set('session', session);
+    if (term) {
+      params.set('cols', term.cols);
+      params.set('rows', term.rows);
+    }
+    ws = new WebSocket(`${proto}//${location.host}/ws?${params.toString()}`);
 
     ws.onopen = () => {
       reconnectDelay = 1000;
